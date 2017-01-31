@@ -87,7 +87,7 @@ func (lp *longPoll) process() {
 			"wait": "25",
 			"mode": "2",
 		}).
-		Get("https://" + lp.data.server)
+		Get("http://" + lp.data.server)
 
 	if err != nil {
 		lp.client.Log("[Error] longPoll::process:", err.Error(), "WebResponse:", string(resp.Body()))

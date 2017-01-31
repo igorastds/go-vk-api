@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-resty/resty"
 	"log"
 	"os"
-
-	"github.com/go-resty/resty"
+	"strings"
 )
 
 // VK struct
@@ -21,6 +21,11 @@ type VK struct {
 	longPoll *longPoll
 
 	Messages *Messages
+	Photos   *Photos
+	Likes    *Likes
+	Wall     *Wall
+	Docs     *Docs
+	Groups   *Groups
 
 	Proxy string
 }
@@ -43,8 +48,8 @@ func (client *VK) CallMethod(method string, params RequestParams) ([]byte, error
 		Get(client.url + method)
 
 	if err != nil {
-		client.Log("[Error] VK::CallMethod:", err.Error(), "WebResponse:", string(resp.Body()))
-		return nil, err
+		client.Log("[Error][IGNORED] VK::CallMethod:", err.Error(), "WebResponse:", string(resp.Body()))
+		// return nil, err
 	}
 
 	type JSONBody struct {
@@ -60,13 +65,18 @@ func (client *VK) CallMethod(method string, params RequestParams) ([]byte, error
 
 	if body.Error != nil {
 		if errorMsg, exists := body.Error["error_msg"].(string); exists {
-			client.Log("[Error] VK::CallMethod:", errorMsg, "WebResponse:", string(resp.Body()))
-			return nil, errors.New(errorMsg)
-		}
+			//	client.Log("[Error] VK::CallMethod:", errorMsg, "WebResponse:", string(resp.Body()))
 
-		client.Log("[Error] VK::CallMethod:", "Unknown error", "WebResponse:", string(resp.Body()))
-		return nil, errors.New("Unknown error")
+			if strings.Contains(errorMsg, "is deactivated") || strings.Contains(errorMsg, "access restriction") {
+				goto ok
+			} else {
+				return nil, errors.New(errorMsg)
+			}
+		}
+		return nil, errors.New("unknon error")
+
 	}
+ok:
 
 	return resp.Body(), nil
 }
@@ -124,6 +134,11 @@ func New(lang string) *VK {
 
 	vk.longPoll = &longPoll{client: vk}
 	vk.Messages = &Messages{client: vk}
+	vk.Likes = &Likes{client: vk}
+	vk.Photos = &Photos{client: vk}
+	vk.Wall = &Wall{client: vk}
+	vk.Docs = &Docs{client: vk}
+	vk.Groups = &Groups{client: vk}
 
 	return vk
 }
