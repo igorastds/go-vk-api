@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-resty/resty"
+	"golang.org/x/net/proxy"
+	"net/http"
 	"log"
 	"os"
 	"strings"
@@ -26,8 +28,11 @@ type VK struct {
 	Wall     *Wall
 	Docs     *Docs
 	Groups   *Groups
+	Database	*Database
+	Users *Users
 
 	Proxy string
+	Socks string
 }
 
 // RequestParams struct
@@ -41,6 +46,14 @@ func (client *VK) CallMethod(method string, params RequestParams) ([]byte, error
 
 	if client.Proxy != "" {
 		resty.SetProxy(fmt.Sprint("http://", client.Proxy))
+	} else if client.Socks != "" {
+		dialer, err := proxy.SOCKS5("tcp", client.Socks, nil, proxy.Direct)
+		if err != nil {
+			client.Log("[Error] Socks proxy error");
+			return nil, err;
+		}
+		ptransport := &http.Transport{Dial: dialer.Dial}
+		resty.SetTransport(ptransport)
 	}
 
 	resp, err := resty.R().
@@ -139,6 +152,8 @@ func New(lang string) *VK {
 	vk.Wall = &Wall{client: vk}
 	vk.Docs = &Docs{client: vk}
 	vk.Groups = &Groups{client: vk}
+	vk.Database = &Database{client: vk}
+	vk.Users = &Users{client: vk}
 
 	return vk
 }

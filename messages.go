@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"strings"
 )
 
@@ -24,11 +25,33 @@ func (messages *Messages) Delete(params RequestParams, multiple bool) (int, erro
 	}
 
 	deleted := 0
+	deleted_unmarshal_cause := false
+	if !multiple {
+		var resp ResponseFlag
+		err = json.Unmarshal(body, &resp)
+		if err != nil {
+			//return 0, errors.New(fmt.Sprintf("cannot unmarshal delete response: %v, body: %s", err, string(body)))
+			deleted_unmarshal_cause = true
+			goto delete_multi
+		}
+		if resp.Response != 1 {
+			return 0, errors.New("no success deleting message")
+		}
+		goto delete_done
+
+	}
+
+delete_multi:
 	if multiple {
+
 		var resp ResponseFlagMultiple
 		err = json.Unmarshal(body, &resp)
 		if err != nil {
 			return 0, errors.New(fmt.Sprintf("cannot unmarshal delete response: %v, body: %s", err, string(body)))
+		}
+
+		if deleted_unmarshal_cause {
+			log.Warnf("delete: response was in multi message format for single message request: %s", string(body))
 		}
 
 		failedKeys := make([]string, 0)
@@ -44,18 +67,9 @@ func (messages *Messages) Delete(params RequestParams, multiple bool) (int, erro
 			return deleted, errors.New(fmt.Sprintf("failed to delete following messages: %s", strings.Join(failedKeys, ",")))
 		}
 
-	} else {
-		var resp ResponseFlag
-		err = json.Unmarshal(body, &resp)
-		if err != nil {
-			return 0, errors.New(fmt.Sprintf("cannot unmarshal delete response: %v, body: %s", err, string(body)))
-		}
-		if resp.Response != 1 {
-			return 0, errors.New("no success deleting message")
-			deleted = 1
-		}
 	}
 
+delete_done:
 	return deleted, nil
 }
 
